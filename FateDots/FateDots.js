@@ -7,7 +7,7 @@ var FateDots = FateDots || (function () {
         var version = '0.2.1',
             lastUpdate = 1427604248,
             schemaVersion = 0.4,
-            statuses = [
+            statuses = new Set([
                 'blue',
                 'green',
                 'brown',
@@ -61,32 +61,8 @@ var FateDots = FateDots || (function () {
                 'all-for-one',
                 'angel-outfit',
                 'archery-target'
-            ],
-            regex = {
-                statuses: /^(?:red|blue|green|brown|purple|pink|yellow|skull|sleepy|half-heart|half-haze|interdiction|snail|lightning-helix|spanner|chained-heart|chemical-bolt|death-zone|drink-me|edge-crack|ninja-mask|stopwatch|fishing-net|overdrive|strong|fist|padlock|three-leaves|fluffy-wing|pummeled|tread|arrowed|aura|back-pain|black-flag|bleeding-eye|bolt-shield|broken-heart|cobweb|broken-shield|flying-flag|radioactive|trophy|broken-skull|frozen-orb|rolling-bomb|white-tower|grab|screaming|grenade|sentry-gun|all-for-one|angel-outfit|archery-target)$/
-            },
+            ]),
 
-            ch = function (c) {
-                var entities = {
-                    '<': 'lt',
-                    '>': 'gt',
-                    "'": '#39',
-                    '@': '#64',
-                    '{': '#123',
-                    '|': '#124',
-                    '}': '#125',
-                    '[': '#91',
-                    ']': '#93',
-                    '"': 'quot',
-                    '-': 'mdash',
-                    ' ': 'nbsp'
-                };
-
-                if (_.has(entities, c)) {
-                    return ('&' + entities[c] + ';');
-                }
-                return '';
-            },
 
             showHelp = function () {
                 var msg = '/w gm '
@@ -111,7 +87,7 @@ var FateDots = FateDots || (function () {
                     msg += '<div style="width: 130px; padding: 0px 3px;float: left;">' + status + '</div>';
                 }
 
-                msg += '<div style="clear:both;">' + ch(' ') + '</div>'
+                msg += '<div style="clear:both;">' + _.escape(' ') + '</div>'
 
                     + '<p>Adding purple, setting mental, removing blue.</p>'
                     + '<div style="padding-left: 10px;padding-right:20px">'
@@ -152,8 +128,9 @@ var FateDots = FateDots || (function () {
             },
             rename = function (args) {
                 var sendRenameError = function () {
-                    sendChat('FateDots', 'You must provide a main status bar name (blue, green, or red) and '
-                        + 'a ')
+                    showHelp()
+                    sendChat('FateDots', 'You must provide a main status bar name. This can be [' +Object.keys(state.FateDots.literalAliases).join('|') + '] '
+                        + 'or ['+ Object.keys(state.FateDots.userAliases).join('|'))
                 };
                 if (args.length !== 2) {
                     return sendRenameError()
@@ -172,11 +149,11 @@ var FateDots = FateDots || (function () {
 
             },
             handleInput = function (msg) {
-                var args;
 
                 if ("api" !== msg.type || !playerIsGM(msg.playerid)) {
                     return;
                 }
+                var args;
 
                 args = msg.content.split(/\s+/g);
 
@@ -188,7 +165,11 @@ var FateDots = FateDots || (function () {
                     args.shift();
                     return rename(args)
                 } else if (args[0] === "list") {
-                    return sendChat('FateDots', '/w gm User aliases are ' + Object.keys(state.FateDots.userAliases).join(', '))
+                    var aliasListing = [];
+                    for (var key in state.FateDots.userAliases){
+                        aliasListing.push( key + " : " + state.FateDots.userAliases[key]);
+                    }
+                    return sendChat('FateDots', '/w gm User aliases are ' + aliasListing.join(', '))
                 } else if (args[0] === "help") {
                     return showHelp();
 
@@ -207,7 +188,7 @@ var FateDots = FateDots || (function () {
                     var assignValue = matches[1] == '=';
                     var givenNumber = matches[2] | 0;
                     var statusToChange = matches[3];
-                    var isDefaultSymbol = statusToChange.match(regex.statuses);
+                    var isDefaultSymbol = statuses.has(statusToChange);
                     var isUserSymbol = state.FateDots.userAliases.hasOwnProperty(statusToChange);
                     if (!(isUserSymbol || isDefaultSymbol)) {
                         showHelp();
