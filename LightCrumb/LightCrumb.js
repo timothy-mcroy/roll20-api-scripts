@@ -1,5 +1,5 @@
 // Gist:  https://gist.github.com/plexsoup/64852540504101b520b25f7c3fa84e5f
-// By:       Plexsoup - copied from Mark by The Aaron. With help from Scott C, Stephen L and
+// By:       Plexsoup - copied from Mark by The Aaron. With help from Scott C, Stephen L and Tritlo
 // Thanks: Testers and Feedback: al e., DM Robzer, Vince, Pat S, Gold, Anthony,  Kryx, Sudain
 // Contact:  https://app.roll20.net/users/258125/plexsoup
 
@@ -80,6 +80,7 @@ Great for dungeon crawls and hex crawls.
 
 
 	DONE:
+	- add option to change the radius of the displayed aura.
 	- add option to change the graphic: invisible token would be nice.
 	- update register case to drop a lightcrumb right away
 	- add dynamic configuration options for the radius and dimness of the light
@@ -117,9 +118,9 @@ var LightCrumb = LightCrumb || (function LightCrumbTrailMaker() {
 
 	var debugDEFCON = 5; // 	DEFCON 1 = FUBAR: LOG EVERYTHING. DEFCON 5 = AOK: LOG NOTHING
 
-	var version = "0.75";
-	var lastUpdate = 1484950532404;
-	var schemaVersion = "0.75";
+	var version = "0.76";
+	var lastUpdate = 1486466920154;
+	var schemaVersion = "0.76";
 
 	var ICONS = { // note: Roll20 has particular rules about imgsrc. See https://wiki.roll20.net/API:Objects#imgsrc_and_avatar_property_restrictions
 		torch: "https://s3.amazonaws.com/files.d20.io/images/17247606/Wbr841_bq9ka1FmamWo38w/thumb.png?1458169656",
@@ -334,6 +335,7 @@ var LightCrumb = LightCrumb || (function LightCrumbTrailMaker() {
 	var getLightConfigButtons = function lightConfigForChat (playerName) {
 		if (!playerName) { playerName = "gm";}
 
+		var gridUnits = getObj("page", getCurrentPage("gm")).get("scale_units"); // **** What if the gm is on a different page than the players, but a player invoked lightcrumb?
 		var chatMessage = "";
 		
 		chatMessage += '<div style="border: 2px solid red; text-align: center; margin: 5px;">';
@@ -354,7 +356,7 @@ var LightCrumb = LightCrumb || (function LightCrumbTrailMaker() {
 		chatMessage += 		'</span>';
 	
 		chatMessage += 		'<span>';
-		chatMessage += 			makeButton("Crumb Seperation", '!LightCrumb-config DROP_DISTANCE ?'+ch('{')+ 'DROP_DISTANCE In feet' +ch('|')+ config.DROP_DISTANCE +ch('}'));
+		chatMessage += 			makeButton("Crumb Seperation", '!LightCrumb-config DROP_DISTANCE ?'+ch('{')+ 'DROP_DISTANCE In ' + gridUnits +ch('|')+ config.DROP_DISTANCE +ch('}'));
 		chatMessage += 		'</span>';
 		chatMessage += 		'<span>';
 		chatMessage += 			makeButton("Toggle Drop Location", '!LightCrumb-config DROP_AT_PREVIOUS_LOCATION 1');
@@ -364,6 +366,11 @@ var LightCrumb = LightCrumb || (function LightCrumbTrailMaker() {
 		chatMessage += 			makeButton("Offset Distance", '!LightCrumb-config OFFSET_DISTANCE ?'+ch('{')+ 'OFFSET_DISTANCE In pixels' +ch('|')+ config.OFFSET +ch('}'));
 		chatMessage += 		'</span>';
 
+		chatMessage += 		'<span>';
+		chatMessage += 			makeButton("Aura Radius", '!LightCrumb-config AURA_RADIUS ?'+ch('{')+ 'AURA_RADIUS in ' + gridUnits + ch('|')+ config.AURA_RADIUS +ch('}'));
+		chatMessage += 		'</span>';		
+		
+		
 		/*
 		chatMessage += 		'<span>';
 		chatMessage += 			makeButton("Show Help on Load", '!LightCrumb-config SHOW_HELP_ON_READY ?'+ch('{')+ 'SHOW_HELP_ON_READY: 0 or 1' +ch('|')+ config.SHOW_HELP_ON_READY +ch('}'));
@@ -707,8 +714,12 @@ o888o o888o o888o 888ooo88    888o88 8o  888o
 								} else {
 									requestedLightCrumbSettings.aura1_radius = config.AURA_RADIUS;
 								}
-
 								needBatchConversion = true;
+								
+							} else if (requestedParameter == "AURA_RADIUS") {
+								config.AURA_RADIUS = requestedValue;
+								needBatchConversion = true;
+								whisperSmall(playerName, "AURA_RADIUS set to " + config.AURA_RADIUS);							
 							} else if (requestedParameter == "SHOW_NAMES") {
 								config.SHOW_NAMES = !config.SHOW_NAMES; // toggle true false
 								requestedLightCrumbSettings.showname = config.SHOW_NAMES;
@@ -974,7 +985,6 @@ d88' `"Y8 d88' `88b `888P"Y88b   `88.  .8'  d88' `88b `888""8P   888
 					var controlledByArray = currentCrumb.get("controlledby").split(",");
 					controlledByArray = _.without(controlledByArray, "all");
 					var controlledByString = controlledByArray.join(",");
-					log("==> controlledByString: " + controlledByString);
 					if (debugDEFCON < 4) { log("in convertCrumbToNewSettings: controlledByString = " + controlledByString); }
 					// then add it back if it's needed.
 					if (config.SHARED_VISION === true) { // add "all" to controlledby 
@@ -1373,7 +1383,7 @@ o888ooo88   o888o         88ooo88   888ooo88
 			log("There are " + allLightCrumbsOnPlayerLayer.length + " known torch tokens on object layer: ");
 		}
 
-		if ( debugDEFCON<5 ) { log("leaving dropLightCrumb. Returning currentLightCrumb." + JSON.stringify(currentLightCrumb)); }
+		if ( debugDEFCON < 5 ) { log("leaving dropLightCrumb. Returning currentLightCrumb." + JSON.stringify(currentLightCrumb)); }
 		
 		return currentLightCrumb;
 		
@@ -1641,7 +1651,7 @@ o88o  8  o88o  88ooo88      888      88oooo888
 				// var controllingPlayerID = tokenMoved.get("controlledby"); // fails
 				
 				var activeCharacter = getObj("character", tokenMoved.get("represents"));
-				var controllingPlayerID
+				var controllingPlayerID;
 
 				if (activeCharacter !== undefined) {
 
